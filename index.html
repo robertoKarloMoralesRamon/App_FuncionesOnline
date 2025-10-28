@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sistema de funciones — versión web (GitHub Pages)</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjs@11.8.0/lib/browser/math.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.24.2.min.js"></script>
+  <style>
+    :root{
+      --bg:#fdeaff; --fg:#004080; --accent:#a3d5ff; --panel:#ffffff;
+    }
+    [data-theme="oscuro"]{ --bg:#1e1e1e; --panel:#2b2b2b; --fg:#f5f5f5; --accent:#6c757d }
+    body{ margin:0; font-family: Inter, Segoe UI, Arial, sans-serif; background:var(--bg); color:var(--fg); }
+    .container{ max-width:1100px; margin:18px auto; padding:18px; }
+    header{ display:flex; align-items:center; justify-content:space-between; gap:12px }
+    h1{ margin:0; font-size:22px }
+    .controls{ display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+    .panel{ background:var(--panel); border-radius:10px; padding:12px; box-shadow:0 6px 18px rgba(0,0,0,0.06); }
+    label{ display:block; margin-bottom:6px; font-weight:600 }
+    input[type="text"], select, textarea{ width:100%; padding:8px; border-radius:6px; border:1px solid #ccc; box-sizing:border-box }
+    .grid{ display:grid; grid-template-columns: 1fr 380px; gap:12px; margin-top:12px }
+    .row{ display:flex; gap:8px }
+    button{ background:var(--accent); color:var(--fg); padding:8px 10px; border:none; border-radius:8px; cursor:pointer }
+    button.secondary{ background:transparent; border:1px solid #ccc }
+    .small{ font-size:13px }
+    #plot{ height:420px; }
+    table{ width:100%; border-collapse:collapse }
+    th, td{ padding:6px 8px; border:1px solid #e6e6e6; text-align:center }
+    .users{ display:flex; gap:6px; }
+    .user-btn{ padding:6px 8px; border-radius:8px; cursor:pointer; border:1px solid transparent }
+    .footer{ margin-top:14px; font-size:13px; color:rgba(0,0,0,0.6) }
+    pre { white-space:pre-wrap }
+    @media (max-width:980px){ .grid{ grid-template-columns: 1fr; } #plot{ height:300px } }
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <header>
+      <div>
+        <h1>Sistema de funciones — versión web</h1>
+        <div class="small">Asistente: <strong>EQUIPO 5H</strong></div>
+      </div>
+      <div class="controls">
+        <div class="users panel" id="user-panel" style="padding:6px;">
+          <select id="user-select" class="small"></select>
+        </div>
+        <div class="panel small" style="padding:6px; display:flex; gap:8px; align-items:center;">
+          <label for="theme" style="margin:0 6px 0 0;">Tema</label>
+          <select id="theme" class="small">
+            <option>Claro</option>
+            <option>Oscuro</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="panel">
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            <div style="flex:1">
+              <label>f(x) — expresión (ej: 2*x o sin(x))</label>
+              <input id="f-text" type="text" value="2*x" />
+            </div>
+            <div style="width:220px">
+              <label>Parámetros f (ej: 0,1,2 o 0:0.5:3)</label>
+              <input id="xf-text" type="text" value="0,1,2,3" />
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            <div style="flex:1">
+              <label>g(x) — expresión (ej: x**2 o exp(x))</label>
+              <input id="g-text" type="text" value="x**2" />
+            </div>
+            <div style="width:220px">
+              <label>Parámetros g</label>
+              <input id="xg-text" type="text" value="1,2,3" />
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:12px; align-items:center">
+            <button id="run">Continuar</button>
+            <button id="example" class="secondary">Ejemplo rápido</button>
+            <button id="export-csv" class="secondary">Exportar CSV</button>
+            <button id="save-img" class="secondary">Guardar gráfico</button>
+            <div style="flex:1"></div>
+            <label class="small">Malla para gráfico</label>
+            <input id="mesh" type="number" value="2000" style="width:80px" />
+          </div>
+
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+            <button data-view="explain" class="view-btn">🧮 Explicación</button>
+            <button data-view="plots" class="view-btn">📈 Gráficas</button>
+            <button data-view="table" class="view-btn">📊 Tabla</button>
+            <button data-view="deriv" class="view-btn">📌 Derivada & Integral</button>
+          </div>
+        </div>
+
+        <div id="main-panel" class="panel" style="margin-top:12px; min-height:320px;">
+          <!-- Aquí se mostrarán las vistas -->
+          <div id="view-area"></div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="panel">
+          <h3 style="margin-top:0">Paleta de usuarios</h3>
+          <div style="display:grid; gap:8px;">
+            <div style="display:flex; gap:8px; align-items:center">
+              <button class="user-btn" data-user="Roberto Karlo Morales Ramón">Roberto</button>
+              <button class="user-btn" data-user="Samuel Romero Contreras">Samuel</button>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center">
+              <button class="user-btn" data-user="Keisi Odette Velázquez Rodríguez">Keisi</button>
+              <button class="user-btn" data-user="Cynthia Ailin Juárez Tenorio">Cynthia</button>
+            </div>
+          </div>
+
+          <hr />
+          <p class="small">Sugerencias:</p>
+          <ul class="small">
+            <li>Usa funciones de <code>math.js</code> como <code>sin</code>, <code>cos</code>, <code>exp</code>, <code>sqrt</code>.</li>
+            <li>Los rangos aceptan paso negativo (ej: 3:-1:0).</li>
+            <li>Si la expresión falla, revisa la sintaxis o usa <code>x</code> como variable.</li>
+          </ul>
+        </div>
+
+        <div class="panel" style="margin-top:12px">
+          <h3 style="margin:0">Estado</h3>
+          <pre id="status" style="height:200px; overflow:auto; background:#fafafa; padding:8px; border-radius:6px"></pre>
+        </div>
+      </aside>
+    </div>
+
+    <div class="footer">Sube este archivo a un repositorio y actívalo con GitHub Pages para publicarlo en la web.</div>
+  </div>
+
+  <script>
+  // --- Paletas por usuario (coinciden con tu app) ---
+  const USUARIOS = {
+    "Roberto Karlo Morales Ramón": { bg: '#fdeaff', fg: '#004080', accent: '#a3d5ff' },
+    "Samuel Romero Contreras": { bg: '#d8f3dc', fg: '#4d2c00', accent: '#95d5b2' },
+    "Keisi Odette Velázquez Rodríguez": { bg: '#ffe6ff', fg: '#7b2cbf', accent: '#ffc8dd' },
+    "Cynthia Ailin Juárez Tenorio": { bg: '#2b2b2b', fg: '#f5f5f5', accent: '#6c757d' }
+  };
+
+  // DOM refs
+  const fText = document.getElementById('f-text');
+  const gText = document.getElementById('g-text');
+  const xfText = document.getElementById('xf-text');
+  const xgText = document.getElementById('xg-text');
+  const runBtn = document.getElementById('run');
+  const meshInput = document.getElementById('mesh');
+  const viewArea = document.getElementById('view-area');
+  const status = document.getElementById('status');
+  const userSelect = document.getElementById('user-select');
+  const themeSelect = document.getElementById('theme');
+  const exportCsvBtn = document.getElementById('export-csv');
+  const saveImgBtn = document.getElementById('save-img');
+
+  // Inicializar users
+  const users = Object.keys(USUARIOS);
+  users.forEach(u => {
+    const op = document.createElement('option'); op.value = u; op.textContent = u.split(' ')[0]; userSelect.appendChild(op);
+  });
+  let currentUser = users[0]; userSelect.value = currentUser;
+
+  // set theme and palette
+  function applyPalette(user, theme){
+    currentUser = user;
+    const pal = USUARIOS[user] || {bg:'#fff', fg:'#000', accent:'#a3d5ff'};
+    document.documentElement.style.setProperty('--bg', pal.bg);
+    document.documentElement.style.setProperty('--fg', pal.fg);
+    document.documentElement.style.setProperty('--accent', pal.accent);
+    if(theme === 'Oscuro') document.documentElement.setAttribute('data-theme','oscuro');
+    else document.documentElement.removeAttribute('data-theme');
+  }
+  applyPalette(currentUser, themeSelect.value);
+
+  userSelect.addEventListener('change',()=> applyPalette(userSelect.value, themeSelect.value));
+  themeSelect.addEventListener('change',()=> applyPalette(userSelect.value, themeSelect.value));
+
+  // Helpers: log status
+  function log(msg){
+    const t = new Date().toLocaleTimeString();
+    status.textContent = `[${t}] ${msg}\n` + status.textContent;
+  }
+
+  // Parse params: "0,1,2" or "0:0.5:3" or mixed
+  function parseParams(text){
+    text = (text||'').trim(); if(!text) return [];
+    const parts = text.split(',').map(p=>p.trim()).filter(p=>p.length);
+    let nums = [];
+    for(const p of parts){
+      if(p.includes(':')){
+        const pieces = p.split(':').map(x=>x.trim());
+        if(pieces.length !== 3) throw new Error('Formato de rango inválido (usa start:step:end)');
+        let s = parseFloat(pieces[0]); let step = parseFloat(pieces[1]); let e = parseFloat(pieces[2]);
+        if(isNaN(s)||isNaN(step)||isNaN(e)) throw new Error('Rango con valores no numéricos');
+        if(step === 0) throw new Error('El paso (step) no puede ser 0');
+        if(step > 0){ for(let v=s; v<= e + 1e-12; v = Math.round((v+step)*1e12)/1e12) nums.push(Number((v).toString())); }
+        else { for(let v=s; v>= e - 1e-12; v = Math.round((v+step)*1e12)/1e12) nums.push(Number((v).toString())); }
+      } else {
+        const n = parseFloat(p);
+        if(isNaN(n)) throw new Error('Parámetro inválido: '+p);
+        nums.push(n);
+      }
+    }
+    // if all integers, keep ints
+    if(nums.length && nums.every(n=>Number.isInteger(n))) return Array.from(new Set(nums.map(n=>parseInt(n))));
+    return Array.from(new Set(nums));
+  }
+
+  // Safe eval using math.js: we allow typical math functions
+  function makeFunc(expr){
+    expr = (expr||'').trim(); if(!expr) throw new Error('Expresión vacía');
+    // forbid dangerous tokens (basic)
+    const forbid = /__|import\b|function\b|=>|console\b/;
+    if(forbid.test(expr)) throw new Error('La expresión contiene tokens prohibidos');
+    // Use math.js compile for performance
+    try{
+      const node = math.parse(expr);
+      const code = node.compile();
+      return function(x){
+        // allow x as scalar or array
+        if(Array.isArray(x)){
+          return x.map(xi => {
+            const scope = {x: xi};
+            return code.evaluate(scope);
+          });
+        } else {
+          const scope = {x: x};
+          return code.evaluate(scope);
+        }
+      }
+    }catch(e){ throw new Error('Error en la expresión: '+e.message); }
+  }
+
+  // Numerical derivative (central differences)
+  function numericalDerivative(func, xs){
+    const n = xs.length; if(n<2) return new Array(n).fill(NaN);
+    const ys = func(xs);
+    const dy = new Array(n);
+    for(let i=0;i<n;i++){
+      if(i===0) dy[i] = (ys[1]-ys[0])/(xs[1]-xs[0]);
+      else if(i===n-1) dy[i] = (ys[n-1]-ys[n-2])/(xs[n-1]-xs[n-2]);
+      else dy[i] = (ys[i+1]-ys[i-1])/(xs[i+1]-xs[i-1]);
+    }
+    return dy;
+  }
+
+  // Numerical integral (trapezoid)
+  function numericalIntegral(func, xs){
+    const ys = func(xs);
+    let area = 0;
+    for(let i=0;i<xs.length-1;i++){
+      const dx = xs[i+1]-xs[i];
+      area += 0.5*(ys[i]+ys[i+1])*dx;
+    }
+    return area;
+  }
+
+  // detect intersections by sign changes with linear interpolation
+  function findIntersections(xs, ys1, ys2){
+    const diff = xs.map((x,i)=>{ const a=ys1[i], b=ys2[i]; if(!isFinite(a)||!isFinite(b)) return NaN; return a-b });
+    const inters = [];
+    for(let i=0;i<diff.length-1;i++){
+      const d0 = diff[i], d1 = diff[i+1];
+      if(!isFinite(d0) || !isFinite(d1)) continue;
+      if(Math.abs(d0)<=1e-12) inters.push(xs[i]);
+      else if(Math.abs(d1)<=1e-12) inters.push(xs[i+1]);
+      else if(d0*d1 < 0){
+        const t = -d0/(d1-d0); const xr = xs[i] + t*(xs[i+1]-xs[i]); inters.push(xr);
+      }
+    }
+    // unique rounded
+    const uniq = Array.from(new Set(inters.map(x=>+x.toFixed(8))));
+    return uniq;
+  }
+
+  // Compute everything similar to Python version
+  function calcularOperaciones(fFunc, gFunc, xF, xG, mesh){
+    log('Evaluando funciones en parámetros...');
+    const fVals = xF.map(x=>fFunc(x));
+    const gVals = xG.map(x=>gFunc(x));
+
+    // comunes
+    const common = xF.filter(x=> xG.includes(x));
+    const tabla = [];
+    for(const x of common){
+      const a = fFunc(x); const b = gFunc(x);
+      const suma = a + b; const resta = a - b; const mult = a*b;
+      const div = Math.abs(b) < 1e-12 ? NaN : +(a/b).toFixed(8);
+      tabla.push({x, f: a, g: b, suma, resta, mult, div});
+    }
+
+    // continuous range for plotting: based on min/max of params or default
+    const all = xF.concat(xG);
+    let xmin, xmax;
+    if(all.length===0){ xmin=-5; xmax=5 } else { xmin = Math.min(...all)-1; xmax = Math.max(...all)+1 }
+    const N = Math.max(100, Math.min(10000, mesh||2000));
+    const xs = new Array(N).fill(0).map((_,i)=> xmin + (xmax-xmin)*i/(N-1));
+
+    // try vector eval
+    let ysF, ysG;
+    try{ ysF = fFunc(xs); ysG = gFunc(xs); }
+    catch(e){ ysF = xs.map(x=>fFunc(x)); ysG = xs.map(x=>gFunc(x)); }
+
+    const inter_cont = findIntersections(xs, ysF, ysG);
+    const inter_param = tabla.filter(r=> Math.abs(r.f - r.g) <= 1e-8).map(r=>r.x);
+
+    return { tabla, datos_individuales: { xF, fVals, xG, gVals }, inter_param, inter_cont, xs, ysF, ysG };
+  }
+
+  // Render views
+  function renderExplanation(fTextS, gTextS, datos, tabla){
+    const parts = [];
+    parts.push(`<h3>Funciones</h3><p>f(x) = <code>${escapeHtml(fTextS)}</code><br>g(x) = <code>${escapeHtml(gTextS)}</code></p>`);
+    parts.push('<h4>Evaluación individual</h4>');
+    parts.push('<strong>f(x) en parámetros:</strong><ul>' + datos.xF.map((x,i)=>`<li>f(${x}) = ${formatNumber(datos.fVals[i])}</li>`).join('') + '</ul>');
+    parts.push('<strong>g(x) en parámetros:</strong><ul>' + datos.xG.map((x,i)=>`<li>g(${x}) = ${formatNumber(datos.gVals[i])}</li>`).join('') + '</ul>');
+    parts.push('<h4>Operaciones en valores comunes</h4>');
+    if(tabla.length===0){ parts.push('<p>No hay valores de x en común entre los parámetros de f y g.</p>'); }
+    else{
+      parts.push('<ul>' + tabla.map(row=>`<li>Para x=${row.x}: f=${formatNumber(row.f)}, g=${formatNumber(row.g)}, f+g=${formatNumber(row.suma)}, f-g=${formatNumber(row.resta)}, f*g=${formatNumber(row.mult)}, f/g=${isNaN(row.div)?'división por 0':row.div}</li>`).join('') + '</ul>');
+    }
+    viewArea.innerHTML = parts.join('\n');
+  }
+
+  function renderTable(tabla){
+    if(tabla.length===0){ viewArea.innerHTML = '<p>No hay filas (no hay parámetros comunes).</p>'; return; }
+    const html = ['<table><thead><tr><th>x</th><th>f(x)</th><th>g(x)</th><th>f+g</th><th>f-g</th><th>f*g</th><th>f/g</th></tr></thead><tbody>'];
+    for(const r of tabla){ html.push(`<tr><td>${r.x}</td><td>${formatNumber(r.f)}</td><td>${formatNumber(r.g)}</td><td>${formatNumber(r.suma)}</td><td>${formatNumber(r.resta)}</td><td>${formatNumber(r.mult)}</td><td>${isNaN(r.div)?'NaN':r.div}</td></tr>`); }
+    html.push('</tbody></table>'); viewArea.innerHTML = html.join('');
+  }
+
+  function renderPlots(fFunc, gFunc, xs, ysF, ysG, inter_cont, inter_param){
+    // main plot with f and g
+    const data = [ { x: xs, y: ysF, name:'f(x)', mode:'lines' }, { x: xs, y: ysG, name:'g(x)', mode:'lines' } ];
+    if(inter_cont.length) data.push({ x: inter_cont, y: inter_cont.map(x=>fFunc(x)), mode:'markers', marker:{color:'red', size:8}, name:'Intersecciones (cont)' });
+    if(inter_param.length) data.push({ x: inter_param, y: inter_param.map(x=>fFunc(x)), mode:'markers', marker:{color:'black', symbol:'diamond', size:8}, name:'Intersecciones (params)' });
+    const layout = { margin:{t:30, r:10, l:40, b:50}, legend:{orientation:'h'}, hovermode:'closest' };
+    viewArea.innerHTML = '<div id="plot"></div><div style="margin-top:6px; display:flex; gap:8px;"><button id="plot-f">f(x)</button><button id="plot-g">g(x)</button><button id="plot-compare">Comparación</button><button id="plot-ops">Operaciones</button></div>';
+    Plotly.newPlot('plot', data, layout, {responsive:true});
+
+    // add handlers for subplots
+    document.getElementById('plot-f').addEventListener('click', ()=>{
+      Plotly.react('plot', [{x:xs,y:ysF,name:'f(x)',mode:'lines+markers'}], layout);
+    });
+    document.getElementById('plot-g').addEventListener('click', ()=>{
+      Plotly.react('plot', [{x:xs,y:ysG,name:'g(x)',mode:'lines+markers'}], layout);
+    });
+    document.getElementById('plot-compare').addEventListener('click', ()=>{
+      const dd = [ {x:xs,y:ysF,name:'f(x)'}, {x:xs,y:ysG,name:'g(x)'} ];
+      if(inter_cont.length) dd.push({ x: inter_cont, y: inter_cont.map(x=>fFunc(x)), mode:'markers', marker:{color:'red', size:8}, name:'Intersecciones (cont)' });
+      Plotly.react('plot', dd, layout);
+    });
+    document.getElementById('plot-ops').addEventListener('click', ()=>{
+      // compute ops on xs only where both finite
+      const fvals = ysF; const gvals = ysG; const suma = fvals.map((v,i)=> v + gvals[i]); const resta = fvals.map((v,i)=> v - gvals[i]);
+      const dataOps = [ {x:xs, y:suma, name:'f+g'}, {x:xs, y:resta, name:'f-g'} ];
+      Plotly.react('plot', dataOps, layout);
+    });
+  }
+
+  function renderDerivIntegral(fTextS, fFunc, xs, ys){
+    const dy = numericalDerivative(fFunc, xs);
+    const area = numericalIntegral(fFunc, xs);
+    const html = `<p>Integral (trapecio sobre rango mostrado): <strong>${area.toFixed(6)}</strong></p>
+      <p>Derivada (muestras): primera: ${formatNumber(dy[0])} ... central: ${formatNumber(dy[Math.floor(dy.length/2)])} ... última: ${formatNumber(dy[dy.length-1])}</p>
+      <div id="plot-deriv" style="height:320px"></div>`;
+    viewArea.innerHTML = html;
+    Plotly.newPlot('plot-deriv', [{x:xs,y:dy,name:'Derivada',mode:'lines'}], {margin:{t:20}});
+  }
+
+  // util formatting
+  function formatNumber(x){ if(x===null||x===undefined) return 'NaN'; if(typeof x === 'number') return (Math.abs(x) < 1e-8 ? '0' : +x.toFixed(6)); return x; }
+  function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // main run
+  let lastResults = null;
+  function runPipeline(){
+    try{
+      const fExpr = fText.value.trim(); const gExpr = gText.value.trim();
+      const xfs = parseParams(xfText.value);
+      const xgs = parseParams(xgText.value);
+      const mesh = parseInt(meshInput.value) || 2000;
+      log('Compilando expresiones...');
+      const fFunc = makeFunc(fExpr);
+      const gFunc = makeFunc(gExpr);
+      const res = calcularOperaciones(fFunc, gFunc, xfs, xgs, mesh);
+      lastResults = { fExpr, gExpr, fFunc, gFunc, ...res };
+      // default view: explanation
+      renderExplanation(fExpr, gExpr, res.datos_individuales, res.tabla);
+      log('Cálculo completado.');
+    }catch(e){ log('ERROR: '+e.message); viewArea.innerHTML = `<div style="color:red">Error: ${escapeHtml(e.message)}</div>`; }
+  }
+
+  // wiring
+  runBtn.addEventListener('click', runPipeline);
+  document.getElementById('example').addEventListener('click', ()=>{ fText.value='2*x'; gText.value='x**2'; xfText.value='0,1,2,3'; xgText.value='1,2,3'; runPipeline(); });
+
+  // view buttons
+  document.querySelectorAll('.view-btn').forEach(b=> b.addEventListener('click', (e)=>{
+    const v = e.currentTarget.dataset.view; if(!lastResults){ viewArea.innerHTML='<p>Primero ejecute "Continuar"</p>'; return; }
+    if(v==='explain') renderExplanation(lastResults.fExpr, lastResults.gExpr, lastResults.datos_individuales, lastResults.tabla);
+    else if(v==='table') renderTable(lastResults.tabla);
+    else if(v==='plots') renderPlots(lastResults.fFunc, lastResults.gFunc, lastResults.xs, lastResults.ysF, lastResults.ysG, lastResults.inter_cont, lastResults.inter_param);
+    else if(v==='deriv') renderDerivIntegral(lastResults.fExpr, lastResults.fFunc, lastResults.xs, lastResults.ysF);
+  }));
+
+  // export CSV
+  exportCsvBtn.addEventListener('click', ()=>{
+    if(!lastResults) { viewArea.innerHTML='<p>Primero ejecute "Continuar"</p>'; return; }
+    const rows = lastResults.tabla;
+    if(!rows.length){ viewArea.innerHTML='<p>No hay datos para exportar.</p>'; return; }
+    const hdr = ['x','f(x)','g(x)','f+g','f-g','f*g','f/g'];
+    const csv = [hdr.join(',')].concat(rows.map(r=> [r.x, r.f, r.g, r.suma, r.resta, r.mult, isNaN(r.div)?'':r.div].join(','))).join('\n');
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='tabla_resultados.csv'; a.click(); URL.revokeObjectURL(url);
+    log('CSV generado.');
+  });
+
+  // save image (Plotly) - saves current plot area if exists
+  saveImgBtn.addEventListener('click', ()=>{
+    const plotEl = document.getElementById('plot') || document.getElementById('plot-deriv');
+    if(!plotEl){ viewArea.innerHTML='<p>No hay gráfico para guardar.</p>'; return; }
+    Plotly.toImage(plotEl, {format:'png', width:1200, height:600}).then(function(dataUrl){
+      const a = document.createElement('a'); a.href = dataUrl; a.download = 'grafico.png'; a.click();
+      log('Imagen guardada');
+    });
+  });
+
+  // keyboard: run on ctrl+enter
+  document.addEventListener('keydown', (e)=>{ if(e.ctrlKey && e.key==='Enter') runPipeline(); });
+
+  // small helpers
+  document.querySelectorAll('.user-btn').forEach(btn=> btn.addEventListener('click', (e)=>{ const u = e.currentTarget.dataset.user; userSelect.value = u; applyPalette(u, themeSelect.value); }));
+
+  // initial example
+  runPipeline();
+  </script>
+</body>
+</html>
